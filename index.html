@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Baitul Islam" />
   <title>Baitul Islam Mosque · Prayer Timings 2026</title>
-  <meta name="description" content="Glanceable 2026 prayer (iqamah) times for Baitul Islam Mosque in Maple, Vaughan — next prayer, today, and this week." />
+  <meta name="description" content="Glanceable 2026 prayer times for Baitul Islam Mosque in Maple, Vaughan — next prayer, this week, and a 3D Qibla finder." />
   <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
   <link rel="manifest" href="./manifest.json" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -33,12 +33,58 @@
 
     <p class="arabic">إِنَّ الصَّلَاةَ كَانَتْ عَلَى الْمُؤْمِنِينَ كِتَابًا مَّوْقُوتًا</p>
 
+    <nav class="pills" aria-label="Sections">
+      <a href="#hero">Now</a>
+      <a href="#today">Today</a>
+      <a href="#qibla">Qibla</a>
+    </nav>
+
     <div id="banner" class="banner" hidden></div>
     <section id="hero" class="hero" aria-live="polite"></section>
 
-    <section class="card">
+    <section class="card" id="today">
       <h2>Today</h2>
       <div id="today-list"></div>
+    </section>
+
+    <section class="card qibla-card" id="qibla">
+      <div class="week-head">
+        <div>
+          <h2>Qibla</h2>
+          <p class="range" id="qibla-place">60 Bashir St, Maple</p>
+        </div>
+        <button type="button" id="qibla-gps" class="today-btn">My location</button>
+      </div>
+
+      <div class="qibla-stage" id="qibla-stage">
+        <div class="qibla-world">
+          <div class="qibla-ground"></div>
+          <div class="qibla-labels" aria-hidden="true">
+            <span class="ql ql-n">N</span>
+            <span class="ql ql-e">E</span>
+            <span class="ql ql-s">S</span>
+            <span class="ql ql-w">W</span>
+          </div>
+          <div class="kaaba-holder">
+            <div class="kaaba" aria-hidden="true">
+              <div class="k-face k-front"></div>
+              <div class="k-face k-back"></div>
+              <div class="k-face k-left"></div>
+              <div class="k-face k-right"></div>
+              <div class="k-face k-top"></div>
+            </div>
+          </div>
+        </div>
+        <div class="qibla-aim" aria-hidden="true"></div>
+      </div>
+
+      <div class="qibla-readout">
+        <div class="qibla-deg" id="qibla-deg">54.5°</div>
+        <div class="qibla-cardinal" id="qibla-cardinal">Northeast</div>
+        <p class="qibla-dist" id="qibla-dist"></p>
+        <p class="qibla-hint" id="qibla-hint"></p>
+      </div>
+      <button type="button" id="qibla-compass" class="qibla-cta">Start compass</button>
     </section>
 
     <section class="card">
@@ -75,5 +121,6 @@
   </main>
   <script src="./timings.js"></script>
   <script src="./app.js"></script>
+  <script src="./qibla.js"></script>
 </body>
 </html>
