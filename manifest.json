@@ -1,0 +1,11 @@
+{
+  "name": "Baitul Islam Prayer Times",
+  "short_name": "Baitul Islam",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#07110c",
+  "theme_color": "#07110c",
+  "icons": [
+    { "src": "./favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}
