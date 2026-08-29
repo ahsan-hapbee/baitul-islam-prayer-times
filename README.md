@@ -17,8 +17,12 @@ Open `index.html`, or:
 npx --yes serve .
 ```
 
+## Live
+
+https://ahsan-hapbee.github.io/baitul-islam-prayer-times/
+
 ## Deploy
 
-- **GitHub Pages** — this repo’s Pages site
+- **GitHub Pages** — this repo’s Pages site (already live)
 - **Vercel** — `npx vercel`
 - **Cloudflare Pages** — upload the folder, or `npx wrangler pages deploy .`
