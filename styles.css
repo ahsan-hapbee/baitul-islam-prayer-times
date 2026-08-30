@@ -138,7 +138,7 @@ h1 {
   100% { opacity: 0.2; }
 }
 .azan-status {
-  margin: 0 0 12px;
+  margin: 0 0 10px;
   padding: 8px 12px;
   border-radius: 12px;
   border: 1px solid var(--line);
@@ -147,6 +147,24 @@ h1 {
   font-size: 12px;
   line-height: 1.4;
 }
+.azan-test {
+  display: block;
+  width: 100%;
+  margin: 0 0 14px;
+  appearance: none;
+  border: none;
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #b42318;
+  color: #fff7f6;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+}
+.azan-test.armed { background: #de3b2e; }
+.azan-test.playing { background: #8a1c14; }
 
 .clock {
   text-align: right;
