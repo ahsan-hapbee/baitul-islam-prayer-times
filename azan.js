@@ -1,5 +1,8 @@
 const AZAN_LEAD_MS = 15 * 60 * 1000;
 const AZAN_TEST_MS = 10 * 1000;
+const AZAN_SRC = "./audio/azan.mp3?v=14";
+const AZAN_TEST_SRC = "./audio/azan-test10.mp3?v=14";
+const KEEP_SRC = "./audio/keepalive.mp3?v=14";
 
 const azan = {
   armed: false,
@@ -12,18 +15,19 @@ const azan = {
   wakeLock: null,
   lastError: null,
   loading: false,
-  ctx: null,
-  buffer: null,
-  raw: null,
-  source: null,
-  keepGain: null,
-  keepOsc: null,
+  player: null,
 };
 
-fetch("./audio/azan.mp3")
-  .then((r) => r.arrayBuffer())
-  .then((buf) => { azan.raw = buf; })
-  .catch(() => {});
+function azanPlayer() {
+  if (azan.player) return azan.player;
+  const el = document.createElement("audio");
+  el.setAttribute("playsinline", "");
+  el.setAttribute("webkit-playsinline", "");
+  el.preload = "auto";
+  document.body.appendChild(el);
+  azan.player = el;
+  return el;
+}
 
 function azanClock(ms) {
   return new Intl.DateTimeFormat("en-US", {
@@ -32,6 +36,20 @@ function azanClock(ms) {
     minute: "2-digit",
     hour12: true,
   }).format(new Date(ms));
+}
+
+function setMediaSession(title) {
+  if (!navigator.mediaSession) return;
+  try {
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title,
+      artist: "Baitul Islam",
+      album: "Azan",
+    });
+    navigator.mediaSession.playbackState = "playing";
+    navigator.mediaSession.setActionHandler("pause", () => {});
+    navigator.mediaSession.setActionHandler("stop", () => disarmAzan());
+  } catch {}
 }
 
 function updateAzanUi() {
@@ -48,9 +66,7 @@ function updateAzanUi() {
 
   if (azan.loading) {
     status.hidden = false;
-    status.textContent = azan.mode === "test"
-      ? "TEST · loading azan, then it will fire in 10s…"
-      : "Loading azan…";
+    status.textContent = "Starting hold tone…";
     testBtn.textContent = "Cancel";
   } else if (azan.playing) {
     status.hidden = false;
@@ -62,11 +78,11 @@ function updateAzanUi() {
     testBtn.textContent = "Stop test";
   } else if (azan.armed && azan.mode === "test") {
     status.hidden = false;
-    status.textContent = `TEST armed · azan in ${remain}s. Leave this page open (screen on).`;
+    status.textContent = `TEST armed · azan in ${remain}s. You can leave the app — a quiet hold tone keeps it alive.`;
     testBtn.textContent = `Cancel test · ${remain}s`;
   } else if (azan.armed) {
     status.hidden = false;
-    status.textContent = `Armed once for ${azan.prayerName} at ${azanClock(azan.prayerAt)} · plays at ${azanClock(azan.fireAt)}. Keep this page open.`;
+    status.textContent = `Armed once for ${azan.prayerName} at ${azanClock(azan.prayerAt)} · plays at ${azanClock(azan.fireAt)}. A quiet hold tone stays playing so backgrounding can work.`;
     btn.setAttribute("aria-label", "Cancel armed azan");
     btn.title = "Azan armed — tap to cancel";
     testBtn.textContent = "Test azan · 10 seconds";
@@ -82,12 +98,7 @@ function updateAzanUi() {
   }
 }
 
-function stopKeepAlive() {
-  if (azan.keepOsc) {
-    try { azan.keepOsc.stop(); } catch {}
-    azan.keepOsc = null;
-    azan.keepGain = null;
-  }
+function stopPlayer() {
   if (azan.timer) {
     clearTimeout(azan.timer);
     azan.timer = null;
@@ -96,14 +107,17 @@ function stopKeepAlive() {
     azan.wakeLock.release?.().catch(() => {});
     azan.wakeLock = null;
   }
-}
-
-function stopSource() {
-  if (!azan.source) return;
-  const source = azan.source;
-  azan.source = null;
-  source.onended = null;
-  try { source.stop(); } catch {}
+  const el = azan.player;
+  if (el) {
+    el.onended = null;
+    el.onerror = null;
+    el.pause();
+    el.removeAttribute("src");
+    el.load();
+  }
+  if (navigator.mediaSession) {
+    try { navigator.mediaSession.playbackState = "none"; } catch {}
+  }
 }
 
 function disarmAzan() {
@@ -113,42 +127,8 @@ function disarmAzan() {
   azan.mode = null;
   azan.fireAt = null;
   azan.prayerAt = null;
-  stopSource();
-  stopKeepAlive();
+  stopPlayer();
   updateAzanUi();
-}
-
-function audioCtx() {
-  const AC = window.AudioContext || window.webkitAudioContext;
-  if (!azan.ctx) azan.ctx = new AC();
-  return azan.ctx;
-}
-
-async function azanBuffer() {
-  const ctx = audioCtx();
-  if (azan.buffer) return azan.buffer;
-  const raw = azan.raw
-    ? azan.raw.slice(0)
-    : await (await fetch("./audio/azan.mp3")).arrayBuffer();
-  azan.buffer = await ctx.decodeAudioData(raw);
-  return azan.buffer;
-}
-
-function startKeepAlive(ctx) {
-  stopKeepAlive();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  gain.gain.value = 0.00008;
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-  osc.start();
-  azan.keepOsc = osc;
-  azan.keepGain = gain;
-  if (navigator.wakeLock?.request) {
-    navigator.wakeLock.request("screen").then((lock) => {
-      azan.wakeLock = lock;
-    }).catch(() => {});
-  }
 }
 
 function markPlaying() {
@@ -156,36 +136,29 @@ function markPlaying() {
   azan.armed = false;
   azan.playing = true;
   azan.lastError = null;
+  setMediaSession(azan.mode === "test" ? "Azan test" : `Azan · ${azan.prayerName}`);
   updateAzanUi();
 }
 
-async function scheduleAzan(delayMs) {
-  const ctx = audioCtx();
-  if (ctx.state === "suspended") await ctx.resume();
-  startKeepAlive(ctx);
-  const buf = await azanBuffer();
-  if (ctx.state === "suspended") await ctx.resume();
-  stopSource();
-  const source = ctx.createBufferSource();
-  source.buffer = buf;
-  source.connect(ctx.destination);
-  const delaySec = Math.max(0, delayMs / 1000);
-  source.onended = () => {
-    if (azan.source === source) {
-      azan.source = null;
-      disarmAzan();
-    }
-  };
-  source.start(ctx.currentTime + delaySec);
-  azan.source = source;
-  if (azan.timer) clearTimeout(azan.timer);
-  azan.timer = setTimeout(() => {
+async function playSrc(src, loop) {
+  const el = azanPlayer();
+  el.loop = !!loop;
+  el.src = src;
+  el.currentTime = 0;
+  await el.play();
+}
+
+async function fireAzanClip() {
+  const el = azanPlayer();
+  el.onended = () => disarmAzan();
+  try {
+    await playSrc(AZAN_SRC, false);
     markPlaying();
-    if (azan.keepOsc) {
-      try { azan.keepOsc.stop(); } catch {}
-      azan.keepOsc = null;
-    }
-  }, Math.max(0, delayMs));
+  } catch (err) {
+    azan.playing = false;
+    azan.lastError = `Azan did not play (${err.name}). Page was ${document.visibilityState}.`;
+    updateAzanUi();
+  }
 }
 
 async function armAzan() {
@@ -211,10 +184,22 @@ async function armAzan() {
     azan.armed = true;
     azan.loading = true;
     updateAzanUi();
-    await scheduleAzan(Math.max(0, azan.fireAt - Date.now()));
+    const el = azanPlayer();
+    el.onended = null;
+    await playSrc(KEEP_SRC, true);
+    setMediaSession(`Azan armed · ${azan.prayerName}`);
+    if (navigator.wakeLock?.request) {
+      navigator.wakeLock.request("screen").then((lock) => { azan.wakeLock = lock; }).catch(() => {});
+    }
     azan.loading = false;
-    if (Date.now() >= azan.fireAt) markPlaying();
-    else updateAzanUi();
+    const wait = Math.max(0, azan.fireAt - Date.now());
+    if (wait === 0) {
+      await fireAzanClip();
+      return;
+    }
+    if (azan.timer) clearTimeout(azan.timer);
+    azan.timer = setTimeout(() => { fireAzanClip(); }, wait);
+    updateAzanUi();
   } catch (err) {
     azan.armed = false;
     azan.loading = false;
@@ -234,8 +219,19 @@ async function armAzanTest() {
   azan.loading = true;
   updateAzanUi();
   try {
-    await scheduleAzan(Math.max(0, azan.fireAt - Date.now()));
+    const el = azanPlayer();
+    el.onended = () => disarmAzan();
+    el.ontimeupdate = () => {
+      if (!azan.playing && el.currentTime >= 10) markPlaying();
+    };
+    await playSrc(AZAN_TEST_SRC, false);
+    setMediaSession("Azan test armed");
+    if (navigator.wakeLock?.request) {
+      navigator.wakeLock.request("screen").then((lock) => { azan.wakeLock = lock; }).catch(() => {});
+    }
     azan.loading = false;
+    if (azan.timer) clearTimeout(azan.timer);
+    azan.timer = setTimeout(() => markPlaying(), AZAN_TEST_MS);
     updateAzanUi();
   } catch (err) {
     azan.armed = false;
@@ -249,8 +245,8 @@ function tickAzan() {
   if (azan.playing) return;
   if (!azan.armed) return;
   if (azan.mode === "test") updateAzanUi();
-  if (azan.ctx && azan.ctx.state === "suspended") azan.ctx.resume().catch(() => {});
-  if (Date.now() >= azan.fireAt) markPlaying();
+  if (azan.mode === "live" && Date.now() >= azan.fireAt) fireAzanClip();
+  if (azan.mode === "test" && Date.now() >= azan.fireAt) markPlaying();
 }
 
 document.getElementById("azan-btn").addEventListener("click", () => {
@@ -263,11 +259,6 @@ document.getElementById("azan-test").addEventListener("click", () => {
   else armAzanTest();
 });
 
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && azan.ctx?.state === "suspended") {
-    azan.ctx.resume().catch(() => {});
-  }
-  tickAzan();
-});
+document.addEventListener("visibilitychange", () => tickAzan());
 
 updateAzanUi();
