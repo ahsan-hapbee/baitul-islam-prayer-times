@@ -122,6 +122,43 @@ function changedKeys(week, prev) {
 
 let browseIndex = null;
 
+function getScheduleState(now = new Date()) {
+  const todayIso = isoDate(now);
+  const todayIdx = periodIndexFor(todayIso);
+  if (todayIdx < 0 && inRamadan(todayIso)) {
+    return { ramadan: true, todayIso, todayIdx, week: null, slots: [], current: null, next: null, nextAt: null };
+  }
+  const week = PRAYER_DATA.weeks[Math.max(todayIdx, 0)] || PRAYER_DATA.weeks[0];
+  const slots = iqamahSlots(week).map((s) => ({
+    ...s,
+    at: zonedTimeToUtc(todayIso, s.time),
+  }));
+  let current = null;
+  let next = slots[0];
+  let nextAt = slots[0].at;
+  if (now.getTime() >= slots[0].at) {
+    current = slots[0];
+    next = null;
+    nextAt = null;
+    for (let i = 0; i < slots.length; i++) {
+      if (now.getTime() >= slots[i].at) current = slots[i];
+      else {
+        next = slots[i];
+        nextAt = slots[i].at;
+        break;
+      }
+    }
+    if (!next) {
+      const tomorrow = addDays(todayIso, 1);
+      const tIdx = periodIndexFor(tomorrow);
+      const tWeek = tIdx >= 0 ? PRAYER_DATA.weeks[tIdx] : week;
+      next = { ...iqamahSlots(tWeek)[0], tomorrow: true };
+      nextAt = zonedTimeToUtc(tomorrow, next.time);
+    }
+  }
+  return { ramadan: false, todayIso, todayIdx, week, slots, current, next, nextAt };
+}
+
 function render(now = new Date()) {
   const todayIso = isoDate(now);
   const weekday = new Intl.DateTimeFormat("en-CA", { timeZone: TZ, weekday: "long" }).format(now);
@@ -146,8 +183,9 @@ function render(now = new Date()) {
   }).format(now);
   document.getElementById("live-hijri").textContent = hijri;
 
-  const todayIdx = periodIndexFor(todayIso);
-  const ramadan = todayIdx < 0 && inRamadan(todayIso);
+  const state = getScheduleState(now);
+  const todayIdx = state.todayIdx;
+  const ramadan = state.ramadan;
   const banner = document.getElementById("banner");
 
   if (ramadan) {
@@ -160,38 +198,11 @@ function render(now = new Date()) {
       <p class="status">Use the mosque’s Ramadan timetable until Eidul Fitr.</p>`;
     document.getElementById("today-list").innerHTML = `<p class="notes" style="padding:8px 12px 16px">The annual chart does not list daily iqamah for this window.</p>`;
   } else {
-    const week = PRAYER_DATA.weeks[todayIdx] || PRAYER_DATA.weeks[0];
-    const slots = iqamahSlots(week).map((s) => ({
-      ...s,
-      at: zonedTimeToUtc(todayIso, s.time),
-    }));
-
-    let current = null;
-    let next = slots[0];
-    let nextAt = slots[0].at;
-    if (now.getTime() < slots[0].at) {
-      current = null;
-      next = slots[0];
-      nextAt = slots[0].at;
-    } else {
-      current = slots[0];
-      next = null;
-      for (let i = 0; i < slots.length; i++) {
-        if (now.getTime() >= slots[i].at) current = slots[i];
-        else {
-          next = slots[i];
-          nextAt = slots[i].at;
-          break;
-        }
-      }
-      if (!next) {
-        const tomorrow = addDays(todayIso, 1);
-        const tIdx = periodIndexFor(tomorrow);
-        const tWeek = tIdx >= 0 ? PRAYER_DATA.weeks[tIdx] : week;
-        next = { ...iqamahSlots(tWeek)[0], tomorrow: true };
-        nextAt = zonedTimeToUtc(tomorrow, next.time);
-      }
-    }
+    const week = state.week;
+    const slots = state.slots;
+    const current = state.current;
+    const next = state.next;
+    const nextAt = state.nextAt;
 
     const remaining = nextAt - now.getTime();
     const isNow = current && now.getTime() - current.at < 20 * 60 * 1000;
@@ -349,4 +360,8 @@ document.getElementById("jump-today").addEventListener("click", () => {
 });
 
 render();
-setInterval(render, 1000);
+setInterval(() => {
+  const now = new Date();
+  render(now);
+  if (typeof tickAzan === "function") tickAzan(now);
+}, 1000);

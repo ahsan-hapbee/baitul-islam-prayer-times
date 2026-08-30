@@ -85,11 +85,74 @@ h1 {
   text-overflow: ellipsis;
 }
 
+.azan-btn {
+  appearance: none;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  margin-top: 4px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--dim);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+}
+.azan-btn svg {
+  width: 30px;
+  height: 30px;
+}
+.azan-btn .minaret { fill: currentColor; }
+.azan-btn .minaret-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+}
+.azan-btn .azan-waves {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.55;
+  stroke-linecap: round;
+  opacity: 0.28;
+}
+.azan-btn.armed {
+  color: var(--gold);
+  border-color: rgba(212, 175, 90, 0.55);
+  box-shadow: 0 0 0 4px rgba(212, 175, 90, 0.12);
+}
+.azan-btn.armed .azan-waves,
+.azan-btn.playing .azan-waves { opacity: 1; }
+.azan-btn.playing {
+  color: var(--gold-2);
+  border-color: var(--gold);
+}
+.azan-btn.playing .azan-waves {
+  animation: azan-pulse 1.4s ease-out infinite;
+}
+@keyframes azan-pulse {
+  0% { opacity: 0.2; }
+  40% { opacity: 1; }
+  100% { opacity: 0.2; }
+}
+.azan-status {
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--gold-2);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .clock {
   text-align: right;
-  flex: 0 1 42%;
+  flex: 0 1 38%;
   min-width: 0;
-  max-width: 46%;
+  max-width: 42%;
 }
 .clock time {
   display: block;
@@ -645,4 +708,5 @@ details.year > summary::-webkit-details-marker { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .row.current .dot, .row.next .dot { box-shadow: none; }
   html { scroll-behavior: auto; }
+  .azan-btn.playing .azan-waves { animation: none; }
 }

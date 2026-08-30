@@ -7,6 +7,7 @@ Mobile-first glance view of the official 2026 iqamah chart for **Baitul Islam Mo
 - This week’s five prayer times (the chart changes each Friday)
 - Full-year browse
 - 3D Qibla finder (defaults to 60 Bashir St, Maple — northeast, 54.5° from true north)
+- Optional azan: tap the minaret to arm **once**, 15 minutes before the next iqamah. It stays off until you opt in, plays a single time, then turns itself off.
 
 Source: Ahmadiyya Muslim Jama'at Canada, *Salat Timings 2026* (tarbiyat.ca). This is an unofficial convenience view.
 
