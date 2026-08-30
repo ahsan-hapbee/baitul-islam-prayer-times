@@ -1,6 +1,5 @@
 const AZAN_LEAD_MS = 15 * 60 * 1000;
 const AZAN_TEST_MS = 30 * 1000;
-const SILENT_WAV = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
 
 const azan = {
   armed: false,
@@ -12,15 +11,19 @@ const azan = {
   timer: null,
   wakeLock: null,
   lastError: null,
-  audio: new Audio("./audio/azan.mp3"),
-  keepAlive: new Audio(SILENT_WAV),
+  loading: false,
+  ctx: null,
+  buffer: null,
+  raw: null,
+  source: null,
+  keepGain: null,
+  keepOsc: null,
 };
 
-azan.audio.preload = "auto";
-azan.audio.loop = false;
-azan.audio.setAttribute("playsinline", "");
-azan.keepAlive.loop = true;
-azan.keepAlive.setAttribute("playsinline", "");
+fetch("./audio/azan.mp3")
+  .then((r) => r.arrayBuffer())
+  .then((buf) => { azan.raw = buf; })
+  .catch(() => {});
 
 function azanClock(ms) {
   return new Intl.DateTimeFormat("en-US", {
@@ -43,7 +46,13 @@ function updateAzanUi() {
   testBtn.classList.toggle("armed", azan.armed && azan.mode === "test" && !azan.playing);
   testBtn.classList.toggle("playing", azan.playing && azan.mode === "test");
 
-  if (azan.playing) {
+  if (azan.loading) {
+    status.hidden = false;
+    status.textContent = azan.mode === "test"
+      ? "TEST · loading azan, then it will fire in 30s…"
+      : "Loading azan…";
+    testBtn.textContent = "Cancel";
+  } else if (azan.playing) {
     status.hidden = false;
     status.textContent = azan.mode === "test"
       ? "TEST · playing azan now. Tap Test or the minaret to stop."
@@ -74,8 +83,11 @@ function updateAzanUi() {
 }
 
 function stopKeepAlive() {
-  azan.keepAlive.pause();
-  azan.keepAlive.currentTime = 0;
+  if (azan.keepOsc) {
+    try { azan.keepOsc.stop(); } catch {}
+    azan.keepOsc = null;
+    azan.keepGain = null;
+  }
   if (azan.timer) {
     clearTimeout(azan.timer);
     azan.timer = null;
@@ -86,54 +98,52 @@ function stopKeepAlive() {
   }
 }
 
+function stopSource() {
+  if (!azan.source) return;
+  const source = azan.source;
+  azan.source = null;
+  source.onended = null;
+  try { source.stop(); } catch {}
+}
+
 function disarmAzan() {
   azan.armed = false;
   azan.playing = false;
+  azan.loading = false;
   azan.mode = null;
   azan.fireAt = null;
   azan.prayerAt = null;
-  azan.audio.pause();
-  azan.audio.currentTime = 0;
+  stopSource();
   stopKeepAlive();
   updateAzanUi();
 }
 
-function playAzanOnce() {
-  if (azan.playing) return;
-  azan.armed = false;
-  azan.playing = true;
-  azan.lastError = null;
-  if (azan.timer) {
-    clearTimeout(azan.timer);
-    azan.timer = null;
-  }
-  updateAzanUi();
-  const a = azan.audio;
-  a.loop = false;
-  a.muted = false;
-  a.volume = 1;
-  a.currentTime = 0;
-  const finish = () => {
-    a.removeEventListener("ended", finish);
-    disarmAzan();
-  };
-  a.addEventListener("ended", finish);
-  const visible = document.visibilityState;
-  a.play().then(() => {
-    azan.lastError = null;
-    azan.keepAlive.pause();
-    updateAzanUi();
-  }).catch((err) => {
-    a.removeEventListener("ended", finish);
-    azan.playing = false;
-    azan.lastError = `Azan did not play (${err.name}). Page was ${visible}. Leave the site open and the screen on, then tap Test again.`;
-    updateAzanUi();
-  });
+function audioCtx() {
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!azan.ctx) azan.ctx = new AC();
+  return azan.ctx;
 }
 
-function startKeepAlive() {
-  azan.keepAlive.currentTime = 0;
-  azan.keepAlive.play().catch(() => {});
+async function azanBuffer() {
+  const ctx = audioCtx();
+  if (azan.buffer) return azan.buffer;
+  const raw = azan.raw
+    ? azan.raw.slice(0)
+    : await (await fetch("./audio/azan.mp3")).arrayBuffer();
+  azan.buffer = await ctx.decodeAudioData(raw);
+  return azan.buffer;
+}
+
+function startKeepAlive(ctx) {
+  stopKeepAlive();
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  gain.gain.value = 0.00008;
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start();
+  azan.keepOsc = osc;
+  azan.keepGain = gain;
   if (navigator.wakeLock?.request) {
     navigator.wakeLock.request("screen").then((lock) => {
       azan.wakeLock = lock;
@@ -141,13 +151,44 @@ function startKeepAlive() {
   }
 }
 
-function scheduleFire() {
-  const delay = Math.max(0, azan.fireAt - Date.now());
-  if (azan.timer) clearTimeout(azan.timer);
-  azan.timer = setTimeout(() => tickAzan(new Date()), delay);
+function markPlaying() {
+  if (azan.playing) return;
+  azan.armed = false;
+  azan.playing = true;
+  azan.lastError = null;
+  updateAzanUi();
 }
 
-function armAzan() {
+async function scheduleAzan(delayMs) {
+  const ctx = audioCtx();
+  if (ctx.state === "suspended") await ctx.resume();
+  startKeepAlive(ctx);
+  const buf = await azanBuffer();
+  if (ctx.state === "suspended") await ctx.resume();
+  stopSource();
+  const source = ctx.createBufferSource();
+  source.buffer = buf;
+  source.connect(ctx.destination);
+  const delaySec = Math.max(0, delayMs / 1000);
+  source.onended = () => {
+    if (azan.source === source) {
+      azan.source = null;
+      disarmAzan();
+    }
+  };
+  source.start(ctx.currentTime + delaySec);
+  azan.source = source;
+  if (azan.timer) clearTimeout(azan.timer);
+  azan.timer = setTimeout(() => {
+    markPlaying();
+    if (azan.keepOsc) {
+      try { azan.keepOsc.stop(); } catch {}
+      azan.keepOsc = null;
+    }
+  }, Math.max(0, delayMs));
+}
+
+async function armAzan() {
   const now = new Date();
   const state = getScheduleState(now);
   if (state.ramadan || !state.next || !state.nextAt) {
@@ -166,39 +207,50 @@ function armAzan() {
     disarmAzan();
     return;
   }
-  startKeepAlive();
-  azan.armed = true;
-  if (now.getTime() >= azan.fireAt) {
-    playAzanOnce();
-    return;
+  try {
+    azan.armed = true;
+    azan.loading = true;
+    updateAzanUi();
+    await scheduleAzan(Math.max(0, azan.fireAt - Date.now()));
+    azan.loading = false;
+    if (Date.now() >= azan.fireAt) markPlaying();
+    else updateAzanUi();
+  } catch (err) {
+    azan.armed = false;
+    azan.loading = false;
+    azan.lastError = `Could not arm azan (${err.name}). Tap Test again.`;
+    updateAzanUi();
   }
-  scheduleFire();
-  updateAzanUi();
 }
 
-function armAzanTest() {
+async function armAzanTest() {
   azan.lastError = null;
   azan.mode = "test";
   azan.prayerName = "Test";
-  azan.prayerAt = Date.now() + AZAN_TEST_MS + 60 * 1000;
   azan.fireAt = Date.now() + AZAN_TEST_MS;
+  azan.prayerAt = azan.fireAt + 5 * 60 * 1000;
   azan.playing = false;
-  startKeepAlive();
   azan.armed = true;
-  scheduleFire();
+  azan.loading = true;
   updateAzanUi();
+  try {
+    await scheduleAzan(Math.max(0, azan.fireAt - Date.now()));
+    azan.loading = false;
+    updateAzanUi();
+  } catch (err) {
+    azan.armed = false;
+    azan.loading = false;
+    azan.lastError = `Could not arm test (${err.name}: ${err.message}). Tap Test again.`;
+    updateAzanUi();
+  }
 }
 
-function tickAzan(now = new Date()) {
+function tickAzan() {
   if (azan.playing) return;
   if (!azan.armed) return;
-  const t = now.getTime();
   if (azan.mode === "test") updateAzanUi();
-  if (azan.prayerAt && t >= azan.prayerAt && azan.mode !== "test") {
-    disarmAzan();
-    return;
-  }
-  if (t >= azan.fireAt) playAzanOnce();
+  if (azan.ctx && azan.ctx.state === "suspended") azan.ctx.resume().catch(() => {});
+  if (Date.now() >= azan.fireAt) markPlaying();
 }
 
 document.getElementById("azan-btn").addEventListener("click", () => {
@@ -212,7 +264,10 @@ document.getElementById("azan-test").addEventListener("click", () => {
 });
 
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible") tickAzan(new Date());
+  if (document.visibilityState === "visible" && azan.ctx?.state === "suspended") {
+    azan.ctx.resume().catch(() => {});
+  }
+  tickAzan();
 });
 
 updateAzanUi();
