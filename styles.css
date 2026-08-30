@@ -147,6 +147,15 @@ h1 {
   font-size: 12px;
   line-height: 1.4;
 }
+.build {
+  margin: 0 0 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
 .azan-test {
   display: block;
   width: 100%;

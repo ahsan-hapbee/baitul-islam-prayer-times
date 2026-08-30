@@ -1,5 +1,5 @@
 const AZAN_LEAD_MS = 15 * 60 * 1000;
-const AZAN_TEST_MS = 30 * 1000;
+const AZAN_TEST_MS = 10 * 1000;
 
 const azan = {
   armed: false,
@@ -49,7 +49,7 @@ function updateAzanUi() {
   if (azan.loading) {
     status.hidden = false;
     status.textContent = azan.mode === "test"
-      ? "TEST · loading azan, then it will fire in 30s…"
+      ? "TEST · loading azan, then it will fire in 10s…"
       : "Loading azan…";
     testBtn.textContent = "Cancel";
   } else if (azan.playing) {
@@ -69,16 +69,16 @@ function updateAzanUi() {
     status.textContent = `Armed once for ${azan.prayerName} at ${azanClock(azan.prayerAt)} · plays at ${azanClock(azan.fireAt)}. Keep this page open.`;
     btn.setAttribute("aria-label", "Cancel armed azan");
     btn.title = "Azan armed — tap to cancel";
-    testBtn.textContent = "Test azan · 30 seconds";
+    testBtn.textContent = "Test azan · 10 seconds";
   } else if (azan.lastError) {
     status.hidden = false;
     status.textContent = azan.lastError;
-    testBtn.textContent = "Test azan · 30 seconds";
+    testBtn.textContent = "Test azan · 10 seconds";
   } else {
     status.hidden = true;
     btn.setAttribute("aria-label", "Enable azan once, 15 minutes before the next prayer");
     btn.title = "Azan is off. Tap to play once, 15 minutes before the next prayer.";
-    testBtn.textContent = "Test azan · 30 seconds";
+    testBtn.textContent = "Test azan · 10 seconds";
   }
 }
 
