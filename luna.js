@@ -195,7 +195,7 @@ function drawSky(sky, viewAz, viewAlt) {
   }
 
   const sun = project(sky.sunAz, sky.sunAlt, viewAz, viewAlt, w, h, fov);
-  drawBody(ctx, sun, w, h, "#ffd36a", 16, sky.sunAlt < 0);
+  drawSun(ctx, sun, w, h, sky.sunAlt < 0);
   const moon = project(sky.moonAz, sky.moonAlt, viewAz, viewAlt, w, h, fov);
   drawMoonOnSky(ctx, moon, w, h, sky, sky.moonAlt < 0);
 
@@ -217,38 +217,82 @@ function drawSky(sky, viewAz, viewAlt) {
   ctx.lineTo(cx + 26, cy);
   ctx.stroke();
 
-  const dAz = lunaShortest(viewAz, sky.moonAz);
-  const dAlt = sky.moonAlt - viewAlt;
-  if (Math.abs(dAz) > 8 || Math.abs(dAlt) > 8) {
-    const ang = Math.atan2(-dAlt, dAz);
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(ang);
-    ctx.fillStyle = "#f0d48a";
-    ctx.beginPath();
-    ctx.moveTo(42, 0);
-    ctx.lineTo(30, -7);
-    ctx.lineTo(30, 7);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-  }
+  const moonDist = skyAngDist(viewAz, viewAlt, sky.moonAz, sky.moonAlt);
+  const sunDist = skyAngDist(viewAz, viewAlt, sky.sunAz, sky.sunAlt);
+  const moonNear = clamp01(1 - moonDist / 42);
+  const sunNear = clamp01(1 - sunDist / 42);
+  const moonAlpha = 0.32 + 0.68 * (1 - sunNear);
+  const sunAlpha = 0.32 + 0.68 * (1 - moonNear);
+
+  drawAimArrow(ctx, cx, cy, 44, lunaShortest(viewAz, sky.moonAz), sky.moonAlt - viewAlt, "#f4f1ea", moonAlpha);
+  drawAimArrow(ctx, cx, cy, 58, lunaShortest(viewAz, sky.sunAz), sky.sunAlt - viewAlt, "#ffd24a", sunAlpha);
 }
 
-function drawBody(ctx, p, w, h, color, r, below) {
-  if (p.x < -40 || p.x > w + 40 || p.y < -40 || p.y > h + 40) return;
+function clamp01(v) {
+  return Math.max(0, Math.min(1, v));
+}
+
+function skyAngDist(az1, alt1, az2, alt2) {
+  const dAz = lunaShortest(az1, az2) * Math.PI / 180;
+  const a1 = alt1 * Math.PI / 180;
+  const a2 = alt2 * Math.PI / 180;
+  const c = Math.sin(a1) * Math.sin(a2) + Math.cos(a1) * Math.cos(a2) * Math.cos(dAz);
+  return Math.acos(Math.min(1, Math.max(-1, c))) * 180 / Math.PI;
+}
+
+function drawAimArrow(ctx, cx, cy, radius, dAz, dAlt, color, alpha) {
+  const ang = Math.atan2(-dAlt, dAz);
   ctx.save();
-  ctx.globalAlpha = below ? 0.35 : 1;
-  const glow = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, r * 2.4);
-  glow.addColorStop(0, color);
-  glow.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.translate(cx, cy);
+  ctx.rotate(ang);
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = color;
+  ctx.strokeStyle = "rgba(0,0,0,0.35)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(radius + 14, 0);
+  ctx.lineTo(radius - 2, -8);
+  ctx.lineTo(radius - 2, 8);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawSun(ctx, p, w, h, below) {
+  if (p.x < -70 || p.x > w + 70 || p.y < -70 || p.y > h + 70) return;
+  const r = 28;
+  ctx.save();
+  ctx.globalAlpha = below ? 0.38 : 1;
+  const glow = ctx.createRadialGradient(p.x, p.y, r * 0.2, p.x, p.y, r * 2.8);
+  glow.addColorStop(0, "rgba(255, 230, 120, 0.95)");
+  glow.addColorStop(0.45, "rgba(255, 196, 64, 0.45)");
+  glow.addColorStop(1, "rgba(255, 180, 40, 0)");
   ctx.fillStyle = glow;
   ctx.beginPath();
-  ctx.arc(p.x, p.y, r * 2.4, 0, Math.PI * 2);
+  ctx.arc(p.x, p.y, r * 2.8, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = color;
+
+  ctx.translate(p.x, p.y);
+  ctx.strokeStyle = "rgba(255, 210, 80, 0.85)";
+  ctx.lineWidth = 2.4;
+  ctx.lineCap = "round";
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    const inner = r + 5;
+    const outer = r + (i % 2 === 0 ? 18 : 12);
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * inner, Math.sin(a) * inner);
+    ctx.lineTo(Math.cos(a) * outer, Math.sin(a) * outer);
+    ctx.stroke();
+  }
+  const disk = ctx.createRadialGradient(-r * 0.25, -r * 0.25, r * 0.1, 0, 0, r);
+  disk.addColorStop(0, "#fff6c8");
+  disk.addColorStop(0.55, "#ffd24a");
+  disk.addColorStop(1, "#f0a020");
+  ctx.fillStyle = disk;
   ctx.beginPath();
-  ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }
