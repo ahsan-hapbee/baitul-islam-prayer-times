@@ -18,6 +18,12 @@ const luna = {
   dragging: false,
   lastX: 0,
   lastY: 0,
+  lastFrame: 0,
+  sky: null,
+  skyAt: 0,
+  moonSprite: null,
+  moonSpritePhase: -1,
+  lastHint: "",
 };
 
 function lunaShortest(from, to) {
@@ -247,11 +253,25 @@ function drawBody(ctx, p, w, h, color, r, below) {
   ctx.restore();
 }
 
+function moonSprite(phase) {
+  if (luna.moonSprite && Math.abs(luna.moonSpritePhase - phase) < 0.004) return luna.moonSprite;
+  const size = 40;
+  const c = document.createElement("canvas");
+  c.width = size;
+  c.height = size;
+  const ctx = c.getContext("2d");
+  drawMoonDisk(ctx, size / 2, size / 2, 18, phase);
+  luna.moonSprite = c;
+  luna.moonSpritePhase = phase;
+  return c;
+}
+
 function drawMoonOnSky(ctx, p, w, h, sky, below) {
   if (p.x < -50 || p.x > w + 50 || p.y < -50 || p.y > h + 50) return;
   ctx.save();
   ctx.globalAlpha = below ? 0.4 : 1;
-  drawMoonDisk(ctx, p.x, p.y, 18, sky.phase);
+  const spr = moonSprite(sky.phase);
+  ctx.drawImage(spr, p.x - spr.width / 2, p.y - spr.height / 2);
   ctx.restore();
 }
 
@@ -268,52 +288,90 @@ function drawPhasePortrait(sky) {
   drawMoonDisk(ctx, size / 2, size / 2, 46, sky.phase);
 }
 
-function updateLuna() {
-  const sky = skyNow();
-  if (!luna.followPhone) {
+function skyCached() {
+  const now = Date.now();
+  if (!luna.sky || now - luna.skyAt > 2000) {
+    luna.sky = skyNow();
+    luna.skyAt = now;
+    drawPhasePortrait(luna.sky);
+    const sky = luna.sky;
+    document.getElementById("luna-phase-name").textContent = phaseName(sky.phase);
+    document.getElementById("luna-phase-lit").textContent = `${Math.round(sky.fraction * 100)}% illuminated`;
+    document.getElementById("luna-moon-alt").textContent = `${sky.moonAlt >= 0 ? "Above" : "Below"} horizon · ${Math.abs(sky.moonAlt).toFixed(0)}°`;
+    document.getElementById("luna-moon-az").textContent = `${lunaCardinal(sky.moonAz)} · ${sky.moonAz.toFixed(0)}°`;
+    document.getElementById("luna-sun-az").textContent = `Sun ${lunaCardinal(sky.sunAz)} · ${sky.sunAlt >= 0 ? "up" : "down"} ${Math.abs(sky.sunAlt).toFixed(0)}°`;
+    document.getElementById("luna-place").textContent = luna.place;
+    let riseSet = "";
+    if (sky.alwaysUp) riseSet = "Moon stays up today";
+    else if (sky.alwaysDown) riseSet = "Moon stays down today";
+    else riseSet = `Rise ${fmtSkyTime(sky.rise)} · Set ${fmtSkyTime(sky.set)}`;
+    document.getElementById("luna-times").textContent = riseSet;
+  }
+  return luna.sky;
+}
+
+function stepCamera(dt) {
+  const sky = luna.sky;
+  if (!luna.followPhone && !luna.dragging) {
     luna.headingSmooth = sky.moonAz;
     luna.altSmooth = Math.max(-12, Math.min(55, sky.moonAlt));
-  } else {
-    let d = lunaShortest(luna.headingSmooth, luna.heading);
-    luna.headingSmooth = (luna.headingSmooth + d * 0.22 + 360) % 360;
-    luna.altSmooth += (luna.altView - luna.altSmooth) * 0.22;
+    return;
   }
-  drawSky(sky, luna.headingSmooth, luna.altSmooth);
-  drawPhasePortrait(sky);
+  if (luna.dragging) return;
+  const dAz = lunaShortest(luna.headingSmooth, luna.heading);
+  const dAlt = luna.altView - luna.altSmooth;
+  if (Math.abs(dAz) > 6) luna.headingSmooth = luna.heading;
+  else {
+    const k = 1 - Math.exp(-dt / 0.028);
+    luna.headingSmooth = (luna.headingSmooth + dAz * k + 360) % 360;
+  }
+  if (Math.abs(dAlt) > 6) luna.altSmooth = luna.altView;
+  else {
+    const k = 1 - Math.exp(-dt / 0.028);
+    luna.altSmooth += dAlt * k;
+  }
+}
 
+function updateHint(sky) {
   const up = sky.moonAlt >= 0;
-  document.getElementById("luna-phase-name").textContent = phaseName(sky.phase);
-  document.getElementById("luna-phase-lit").textContent = `${Math.round(sky.fraction * 100)}% illuminated`;
-  document.getElementById("luna-moon-alt").textContent = `${sky.moonAlt >= 0 ? "Above" : "Below"} horizon · ${Math.abs(sky.moonAlt).toFixed(0)}°`;
-  document.getElementById("luna-moon-az").textContent = `${lunaCardinal(sky.moonAz)} · ${sky.moonAz.toFixed(0)}°`;
-  document.getElementById("luna-sun-az").textContent = `Sun ${lunaCardinal(sky.sunAz)} · ${sky.sunAlt >= 0 ? "up" : "down"} ${Math.abs(sky.sunAlt).toFixed(0)}°`;
-  document.getElementById("luna-place").textContent = luna.place;
-
-  let riseSet = "";
-  if (sky.alwaysUp) riseSet = "Moon stays up today";
-  else if (sky.alwaysDown) riseSet = "Moon stays down today";
-  else riseSet = `Rise ${fmtSkyTime(sky.rise)} · Set ${fmtSkyTime(sky.set)}`;
-  document.getElementById("luna-times").textContent = riseSet;
-
   const dAz = lunaShortest(luna.headingSmooth, sky.moonAz);
   const dAlt = sky.moonAlt - luna.altSmooth;
   const aligned = Math.abs(dAz) <= 8 && Math.abs(dAlt) <= 8;
-  const hint = document.getElementById("luna-hint");
   const stage = document.getElementById("luna-stage");
-  stage.classList.toggle("aligned", aligned && up);
+  stage.classList.toggle("aligned", aligned && up && luna.followPhone);
+  let text;
   if (luna.followPhone && aligned) {
-    hint.textContent = up
+    text = up
       ? "You are pointing at the moon."
       : "This is the moon’s direction — it is below the horizon right now.";
   } else if (!luna.followPhone) {
-    hint.textContent = up
+    text = up
       ? "Centered on the moon. Start sky view, then point your phone outdoors until the moon sits in the crosshair."
       : "The moon is below the horizon. The map shows it under the line — look this way after moonrise.";
   } else {
     const turn = dAz > 0 ? "right" : "left";
     const tilt = dAlt > 0 ? "tilt up" : "tilt down";
-    hint.textContent = `Turn ${turn} ${Math.abs(Math.round(dAz))}° and ${tilt} ${Math.abs(Math.round(dAlt))}°.`;
+    text = `Turn ${turn} ${Math.abs(Math.round(dAz))}° and ${tilt} ${Math.abs(Math.round(dAlt))}°.`;
   }
+  if (text !== luna.lastHint) {
+    luna.lastHint = text;
+    document.getElementById("luna-hint").textContent = text;
+  }
+}
+
+function lunaFrame(ts) {
+  const sky = skyCached();
+  const dt = luna.lastFrame ? Math.min(0.05, (ts - luna.lastFrame) / 1000) : 0.016;
+  luna.lastFrame = ts;
+  stepCamera(dt);
+  drawSky(sky, luna.headingSmooth, luna.altSmooth);
+  updateHint(sky);
+  requestAnimationFrame(lunaFrame);
+}
+
+function updateLuna() {
+  luna.sky = null;
+  skyCached();
 }
 
 function lunaCompassHeading(event) {
@@ -330,6 +388,10 @@ function lunaCompassHeading(event) {
 function onLunaOrient(event) {
   const heading = lunaCompassHeading(event);
   if (heading == null) return;
+  if (!luna.hasCompass) {
+    luna.headingSmooth = heading;
+    if (typeof event.beta === "number") luna.altSmooth = event.beta - 90;
+  }
   luna.hasCompass = true;
   luna.heading = heading;
   if (typeof event.beta === "number") {
@@ -352,8 +414,8 @@ async function startLunaCompass() {
         return;
       }
     }
-    window.addEventListener("deviceorientationabsolute", onLunaOrient, true);
-    window.addEventListener("deviceorientation", onLunaOrient, true);
+    window.addEventListener("deviceorientationabsolute", onLunaOrient, { capture: true, passive: true });
+    window.addEventListener("deviceorientation", onLunaOrient, { capture: true, passive: true });
     luna.followPhone = true;
     btn.hidden = true;
   } catch {
@@ -421,5 +483,5 @@ document.getElementById("luna-gps").addEventListener("click", () => {
 
 bindLunaDrag();
 updateLuna();
-setInterval(updateLuna, 1000);
-window.addEventListener("resize", updateLuna);
+requestAnimationFrame(lunaFrame);
+window.addEventListener("resize", () => { luna.skyAt = 0; });
