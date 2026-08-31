@@ -460,7 +460,7 @@ details.year > summary::-webkit-details-marker { display: none; }
 }
 .pills a:hover { border-color: var(--gold); color: var(--gold-2); }
 
-#hero, #today, #qibla { scroll-margin-top: 12px; }
+#hero, #today, #qibla, #luna { scroll-margin-top: 12px; }
 
 .qibla-stage {
   --head: 0;
@@ -631,6 +631,57 @@ details.year > summary::-webkit-details-marker { display: none; }
   cursor: pointer;
 }
 .qibla-cta:hover { border-color: var(--gold); color: var(--gold-2); }
+
+.luna-stage {
+  height: 320px;
+  margin: 0 2px 10px;
+  border-radius: 20px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--line);
+  background: #070b16;
+  touch-action: none;
+  cursor: grab;
+}
+.luna-stage:active { cursor: grabbing; }
+.luna-stage canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.luna-stage.aligned {
+  box-shadow: inset 0 0 40px rgba(212, 175, 90, 0.16);
+}
+.luna-hint {
+  margin: 0 8px 10px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+  min-height: 2.6em;
+}
+.luna-phase-row {
+  display: grid;
+  grid-template-columns: 108px 1fr;
+  gap: 14px;
+  align-items: center;
+  padding: 4px 8px 12px;
+}
+#luna-phase {
+  width: 108px;
+  height: 108px;
+  display: block;
+}
+.luna-phase-name {
+  font-family: var(--display);
+  font-size: 26px;
+  line-height: 1.1;
+  font-weight: 600;
+}
+.luna-meta {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
 
 @media (max-width: 400px) {
   .top { flex-wrap: wrap; }

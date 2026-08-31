@@ -8,13 +8,13 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Baitul Islam" />
   <title>Baitul Islam Mosque · Prayer Timings 2026</title>
-  <meta name="description" content="Glanceable 2026 prayer times for Baitul Islam Mosque in Maple, Vaughan — next prayer, this week, and a 3D Qibla finder." />
+  <meta name="description" content="Glanceable 2026 prayer times for Baitul Islam Mosque in Maple — next prayer, Qibla, and Luna moon finder." />
   <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
   <link rel="manifest" href="./manifest.json" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Noto+Naskh+Arabic:wght@600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=15" />
+  <link rel="stylesheet" href="./styles.css?v=16" />
 </head>
 <body>
   <main class="wrap">
@@ -36,6 +36,7 @@
       <a href="#hero">Now</a>
       <a href="#today">Today</a>
       <a href="#qibla">Qibla</a>
+      <a href="#luna">Luna</a>
     </nav>
 
     <div id="banner" class="banner" hidden></div>
@@ -86,6 +87,34 @@
       <button type="button" id="qibla-compass" class="qibla-cta">Start compass</button>
     </section>
 
+    <section class="card luna-card" id="luna">
+      <div class="week-head">
+        <div>
+          <h2>Luna</h2>
+          <p class="range" id="luna-place">60 Bashir St, Maple</p>
+        </div>
+        <button type="button" id="luna-gps" class="today-btn">My location</button>
+      </div>
+
+      <div class="luna-stage" id="luna-stage">
+        <canvas id="luna-sky"></canvas>
+      </div>
+      <p class="luna-hint" id="luna-hint"></p>
+      <button type="button" id="luna-compass" class="qibla-cta">Start sky view</button>
+
+      <div class="luna-phase-row">
+        <canvas id="luna-phase" width="108" height="108"></canvas>
+        <div>
+          <div class="luna-phase-name" id="luna-phase-name">—</div>
+          <p class="luna-meta" id="luna-phase-lit"></p>
+          <p class="luna-meta" id="luna-moon-alt"></p>
+          <p class="luna-meta" id="luna-moon-az"></p>
+          <p class="luna-meta" id="luna-sun-az"></p>
+          <p class="luna-meta" id="luna-times"></p>
+        </div>
+      </div>
+    </section>
+
     <section class="card">
       <div class="week-head">
         <div>
@@ -118,8 +147,10 @@
       <p>Unofficial convenience view of the 2026 Baitul Islam timetable.</p>
     </footer>
   </main>
-  <script src="./timings.js?v=15"></script>
-  <script src="./app.js?v=15"></script>
-  <script src="./qibla.js?v=15"></script>
+  <script src="./suncalc.js"></script>
+  <script src="./timings.js?v=16"></script>
+  <script src="./app.js?v=16"></script>
+  <script src="./qibla.js?v=16"></script>
+  <script src="./luna.js?v=16"></script>
 </body>
 </html>
