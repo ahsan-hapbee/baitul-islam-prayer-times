@@ -360,8 +360,4 @@ document.getElementById("jump-today").addEventListener("click", () => {
 });
 
 render();
-setInterval(() => {
-  const now = new Date();
-  render(now);
-  if (typeof tickAzan === "function") tickAzan(now);
-}, 1000);
+setInterval(render, 1000);

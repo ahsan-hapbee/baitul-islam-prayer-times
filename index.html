@@ -14,8 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Noto+Naskh+Arabic:wght@600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=14" />
-  <link rel="preload" href="./audio/azan-test10.mp3?v=14" as="audio" />
+  <link rel="stylesheet" href="./styles.css?v=15" />
 </head>
 <body>
   <main class="wrap">
@@ -25,29 +24,12 @@
         <h1>Baitul Islam</h1>
         <p class="where">Maple, Vaughan · Eastern Time</p>
       </div>
-      <button type="button" id="azan-btn" class="azan-btn" aria-pressed="false" aria-label="Enable azan once, 15 minutes before the next prayer" title="Azan is off. Tap to play once, 15 minutes before the next prayer.">
-        <svg viewBox="0 0 36 36" aria-hidden="true">
-          <path class="minaret-line" d="M15.2 5.2c1.1-2.2 4.2-.4 3.5 1.8" />
-          <path class="minaret" d="M17.4 6.6l3.4 5.2H14z" />
-          <rect class="minaret" x="12.4" y="11.6" width="10" height="3.2" rx=".5" />
-          <rect class="minaret" x="14.6" y="14.8" width="5.6" height="13.4" rx=".4" />
-          <rect x="16.5" y="22.8" width="1.8" height="5.4" rx=".3" opacity=".3" />
-          <rect class="minaret" x="11.6" y="28.2" width="11.6" height="2.4" rx=".5" />
-          <path class="azan-waves" d="M23.2 16.4c1.35 1.15 1.35 3.2 0 4.35" />
-          <path class="azan-waves" d="M25.6 14.6c2.45 2.15 2.45 5.7 0 7.85" />
-          <path class="azan-waves" d="M28 12.8c3.5 3.05 3.5 8.15 0 11.2" />
-        </svg>
-      </button>
       <div class="clock">
         <time id="live-time">—</time>
         <div class="date" id="live-date"></div>
         <div class="hijri" id="live-hijri"></div>
       </div>
     </header>
-    <p id="azan-status" class="azan-status" hidden></p>
-    <p class="build">v14 · 10s test · background hold</p>
-    <button type="button" id="azan-test" class="azan-test">Test azan · 10 seconds</button>
-
     <p class="arabic">إِنَّ الصَّلَاةَ كَانَتْ عَلَى الْمُؤْمِنِينَ كِتَابًا مَّوْقُوتًا</p>
 
     <nav class="pills" aria-label="Sections">
@@ -128,18 +110,16 @@
     <section class="notes">
       <p>Times are mosque iqamah from the official 2026 chart. They change each Friday (and on 1 Nov when DST ends). Sunrise and sunset are shown for reference, not as prayers.</p>
       <p>Combining Zuhr with Asr, and Maghrib with Isha, is for mosques and namaz centres. At home or work, offer them separately at their prescribed times.</p>
-      <p>The minaret icon arms azan once, 15 minutes before the next iqamah. It stays off until you tap it, plays a single time, then turns itself off. The page must stay open.</p>
     </section>
 
     <footer class="footer">
       <p><a href="https://maps.google.com/?q=Baitul+Islam+Mosque+10610+Jane+Street+Maple">10610 Jane Street, Maple, ON</a><br />
       905-303-4000 · <a href="https://www.tarbiyat.ca">tarbiyat.ca</a></p>
-      <p>Unofficial convenience view of the 2026 Baitul Islam timetable. · v14</p>
+      <p>Unofficial convenience view of the 2026 Baitul Islam timetable.</p>
     </footer>
   </main>
-  <script src="./timings.js?v=14"></script>
-  <script src="./app.js?v=14"></script>
-  <script src="./qibla.js?v=14"></script>
-  <script src="./azan.js?v=14"></script>
+  <script src="./timings.js?v=15"></script>
+  <script src="./app.js?v=15"></script>
+  <script src="./qibla.js?v=15"></script>
 </body>
 </html>
