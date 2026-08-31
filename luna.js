@@ -221,11 +221,23 @@ function drawSky(sky, viewAz, viewAlt) {
   const sunDist = skyAngDist(viewAz, viewAlt, sky.sunAz, sky.sunAlt);
   const moonNear = clamp01(1 - moonDist / 42);
   const sunNear = clamp01(1 - sunDist / 42);
-  const moonAlpha = 0.32 + 0.68 * (1 - sunNear);
-  const sunAlpha = 0.32 + 0.68 * (1 - moonNear);
+  const onMoon = moonDist < 10;
+  const onSun = sunDist < 10;
+  let moonAlpha;
+  let sunAlpha;
+  if (onMoon) {
+    moonAlpha = 0;
+    sunAlpha = 0.42;
+  } else if (onSun) {
+    sunAlpha = 0;
+    moonAlpha = 0.42;
+  } else {
+    moonAlpha = 0.42 + 0.58 * (1 - sunNear);
+    sunAlpha = 0.42 + 0.58 * (1 - moonNear);
+  }
 
-  drawAimArrow(ctx, cx, cy, 44, lunaShortest(viewAz, sky.moonAz), sky.moonAlt - viewAlt, "#f4f1ea", moonAlpha);
-  drawAimArrow(ctx, cx, cy, 58, lunaShortest(viewAz, sky.sunAz), sky.sunAlt - viewAlt, "#ffd24a", sunAlpha);
+  drawAimArrow(ctx, cx, cy, 44, moon.x, moon.y, "#f4f1ea", moonAlpha);
+  drawAimArrow(ctx, cx, cy, 58, sun.x, sun.y, "#ffd24a", sunAlpha);
 }
 
 function clamp01(v) {
@@ -240,8 +252,12 @@ function skyAngDist(az1, alt1, az2, alt2) {
   return Math.acos(Math.min(1, Math.max(-1, c))) * 180 / Math.PI;
 }
 
-function drawAimArrow(ctx, cx, cy, radius, dAz, dAlt, color, alpha) {
-  const ang = Math.atan2(-dAlt, dAz);
+function drawAimArrow(ctx, cx, cy, radius, px, py, color, alpha) {
+  if (alpha < 0.02) return;
+  const dx = px - cx;
+  const dy = py - cy;
+  if (dx * dx + dy * dy < 16) return;
+  const ang = Math.atan2(dy, dx);
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(ang);
