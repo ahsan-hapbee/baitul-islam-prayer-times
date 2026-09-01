@@ -23,6 +23,7 @@ const luna = {
   skyAt: 0,
   moonSprite: null,
   moonSpritePhase: -1,
+  moonSpriteDpr: 0,
   lastHint: "",
   showPaths: true,
 };
@@ -103,8 +104,9 @@ function skyNow() {
   };
 }
 
-function drawMoonDisk(ctx, cx, cy, r, phase) {
-  const size = Math.ceil(r * 2) + 2;
+function drawMoonDisk(ctx, cx, cy, r, phase, pixelScale) {
+  const scale = Math.max(1, pixelScale || 1);
+  const size = Math.ceil((r * 2 + 2) * scale);
   const off = document.createElement("canvas");
   off.width = size;
   off.height = size;
@@ -113,40 +115,53 @@ function drawMoonDisk(ctx, cx, cy, r, phase) {
   const data = img.data;
   const ox = size / 2;
   const oy = size / 2;
+  const rr = r * scale;
   const p = ((phase % 1) + 1) % 1;
-  const alpha = (0.5 - p) * 2 * Math.PI;
-  const lx = Math.sin(alpha);
-  const lz = Math.cos(alpha);
+  const ang = (0.5 - p) * 2 * Math.PI;
+  const lx = Math.sin(ang);
+  const lz = Math.cos(ang);
+  const craters = [
+    [0.16, -0.10, 0.36, 0.90],
+    [-0.30, 0.16, 0.22, 0.86],
+    [0.34, 0.26, 0.13, 0.88],
+    [-0.06, -0.38, 0.15, 0.87],
+  ];
   for (let py = 0; py < size; py++) {
     for (let px = 0; px < size; px++) {
       const x = px + 0.5 - ox;
       const y = py + 0.5 - oy;
-      const d2 = x * x + y * y;
-      if (d2 > r * r) continue;
-      const z = Math.sqrt(Math.max(0, r * r - d2));
-      const i = (py * size + px) * 4;
-      const lit = x * lx + z * lz > 0;
-      const shade = 0.72 + 0.28 * (z / r);
-      if (lit) {
-        data[i] = Math.round(244 * shade);
-        data[i + 1] = Math.round(230 * shade);
-        data[i + 2] = Math.round(184 * shade);
-        data[i + 3] = 255;
-      } else {
-        data[i] = 38;
-        data[i + 1] = 35;
-        data[i + 2] = 28;
-        data[i + 3] = 255;
+      const d = Math.hypot(x, y);
+      if (d > rr + 1.25) continue;
+      const z = Math.sqrt(Math.max(0, rr * rr - Math.min(d, rr) ** 2));
+      const nx = x / rr;
+      const ny = y / rr;
+      const nz = z / rr;
+      let cover = d >= rr ? Math.max(0, rr + 0.65 - d) : 1;
+      if (cover <= 0) continue;
+      let tex = 1;
+      for (let c = 0; c < craters.length; c++) {
+        const cd = Math.hypot(nx - craters[c][0], ny - craters[c][1]);
+        if (cd < craters[c][2]) {
+          const rim = cd / craters[c][2];
+          tex *= craters[c][3] + (1 - craters[c][3]) * rim * rim;
+        }
       }
+      const light = Math.max(0, Math.min(1, (nx * lx + nz * lz) * 5.5 + 0.5));
+      const shade = 0.58 + 0.42 * nz;
+      const i = (py * size + px) * 4;
+      data[i] = Math.round((32 + (244 * tex - 32) * light) * shade);
+      data[i + 1] = Math.round((30 + (232 * tex - 30) * light) * shade);
+      data[i + 2] = Math.round((24 + (196 * tex - 24) * light) * shade);
+      data[i + 3] = Math.round(255 * Math.min(1, cover));
     }
   }
   octx.putImageData(img, 0, 0);
-  ctx.drawImage(off, cx - size / 2, cy - size / 2, size, size);
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.strokeStyle = "rgba(240, 220, 170, 0.4)";
-  ctx.lineWidth = 1.2;
-  ctx.stroke();
+  const dest = size / scale;
+  ctx.save();
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(off, cx - dest / 2, cy - dest / 2, dest, dest);
+  ctx.restore();
 }
 
 function project(az, alt, viewAz, viewAlt, w, h, fov) {
@@ -387,15 +402,22 @@ function drawSun(ctx, p, w, h, below) {
 }
 
 function moonSprite(phase) {
-  if (luna.moonSprite && Math.abs(luna.moonSpritePhase - phase) < 0.004) return luna.moonSprite;
-  const size = 40;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const css = 44;
+  if (
+    luna.moonSprite
+    && Math.abs(luna.moonSpritePhase - phase) < 0.004
+    && luna.moonSpriteDpr === dpr
+  ) return luna.moonSprite;
   const c = document.createElement("canvas");
-  c.width = size;
-  c.height = size;
+  c.width = Math.ceil(css * dpr);
+  c.height = Math.ceil(css * dpr);
   const ctx = c.getContext("2d");
-  drawMoonDisk(ctx, size / 2, size / 2, 18, phase);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  drawMoonDisk(ctx, css / 2, css / 2, css / 2 - 1, phase, dpr);
   luna.moonSprite = c;
   luna.moonSpritePhase = phase;
+  luna.moonSpriteDpr = dpr;
   return c;
 }
 
@@ -403,8 +425,11 @@ function drawMoonOnSky(ctx, p, w, h, sky, below) {
   if (p.x < -50 || p.x > w + 50 || p.y < -50 || p.y > h + 50) return;
   ctx.save();
   ctx.globalAlpha = below ? 0.4 : 1;
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   const spr = moonSprite(sky.phase);
-  ctx.drawImage(spr, p.x - spr.width / 2, p.y - spr.height / 2);
+  const css = 44;
+  ctx.drawImage(spr, p.x - css / 2, p.y - css / 2, css, css);
   ctx.restore();
 }
 
@@ -418,7 +443,7 @@ function drawPhasePortrait(sky) {
   const ctx = canvas.getContext("2d");
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, size, size);
-  drawMoonDisk(ctx, size / 2, size / 2, 46, sky.phase);
+  drawMoonDisk(ctx, size / 2, size / 2, 46, sky.phase, dpr);
 }
 
 function skyCached() {
