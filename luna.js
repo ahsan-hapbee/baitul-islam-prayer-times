@@ -507,45 +507,45 @@ function updateLuna() {
   skyCached();
 }
 
-function screenAngle() {
-  const a = screen.orientation?.angle;
-  if (typeof a === "number" && !Number.isNaN(a)) return a;
-  if (typeof window.orientation === "number") return window.orientation;
-  return 0;
-}
-
-function lunaCompassHeading(event) {
-  let heading = null;
+function lunaLook(event) {
+  let alphaDeg = null;
+  let magDecl = 0;
   if (typeof event.webkitCompassHeading === "number" && !Number.isNaN(event.webkitCompassHeading)) {
-    heading = event.webkitCompassHeading + LUNA_MAPLE.declination;
-  } else if (event.absolute === true && typeof event.alpha === "number") {
-    heading = 360 - event.alpha;
+    alphaDeg = (360 - event.webkitCompassHeading) % 360;
+    magDecl = LUNA_MAPLE.declination;
   } else if (typeof event.alpha === "number") {
-    heading = 360 - event.alpha;
+    alphaDeg = event.alpha;
   }
-  if (heading == null) return null;
-  return (heading - screenAngle() + 360) % 360;
-}
+  if (alphaDeg == null || typeof event.beta !== "number") return null;
 
-function viewAltitude(event) {
-  if (typeof event.beta !== "number") return null;
-  const beta = event.beta * Math.PI / 180;
-  const gamma = (event.gamma || 0) * Math.PI / 180;
-  const up = -Math.cos(beta) * Math.cos(gamma);
-  return Math.asin(Math.max(-1, Math.min(1, up))) * 180 / Math.PI;
+  const toRad = Math.PI / 180;
+  const alpha = alphaDeg * toRad;
+  const beta = event.beta * toRad;
+  const gamma = (event.gamma || 0) * toRad;
+  const ca = Math.cos(alpha);
+  const sa = Math.sin(alpha);
+  const cb = Math.cos(beta);
+  const sb = Math.sin(beta);
+  const cg = Math.cos(gamma);
+  const sg = Math.sin(gamma);
+
+  const vx = -ca * sg - sa * sb * cg;
+  const vy = -sa * sg + ca * sb * cg;
+  const heading = (Math.atan2(vx, vy) * 180 / Math.PI + magDecl + 360) % 360;
+  const alt = Math.asin(Math.max(-1, Math.min(1, -cb * cg))) * 180 / Math.PI;
+  return { heading, alt };
 }
 
 function onLunaOrient(event) {
-  const heading = lunaCompassHeading(event);
-  if (heading == null) return;
-  const alt = viewAltitude(event);
+  const look = lunaLook(event);
+  if (!look) return;
   if (!luna.hasCompass) {
-    luna.headingSmooth = heading;
-    if (alt != null) luna.altSmooth = alt;
+    luna.headingSmooth = look.heading;
+    luna.altSmooth = look.alt;
   }
   luna.hasCompass = true;
-  luna.heading = heading;
-  if (alt != null) luna.altView = Math.max(-90, Math.min(90, alt));
+  luna.heading = look.heading;
+  luna.altView = Math.max(-90, Math.min(90, look.alt));
   luna.followPhone = true;
   document.getElementById("luna-compass").hidden = true;
 }
