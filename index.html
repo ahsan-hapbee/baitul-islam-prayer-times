@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Noto+Naskh+Arabic:wght@600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=19" />
+  <link rel="stylesheet" href="./styles.css?v=20" />
 </head>
 <body>
   <main class="wrap">
@@ -100,7 +100,10 @@
         <canvas id="luna-sky"></canvas>
       </div>
       <p class="luna-hint" id="luna-hint"></p>
-      <button type="button" id="luna-compass" class="qibla-cta">Start sky view</button>
+      <div class="luna-actions">
+        <button type="button" id="luna-compass" class="qibla-cta">Start sky view</button>
+        <button type="button" id="luna-paths" class="qibla-cta luna-paths-btn" aria-pressed="true">Hide paths</button>
+      </div>
 
       <div class="luna-phase-row">
         <canvas id="luna-phase" width="108" height="108"></canvas>
@@ -148,9 +151,9 @@
     </footer>
   </main>
   <script src="./suncalc.js"></script>
-  <script src="./timings.js?v=19"></script>
-  <script src="./app.js?v=19"></script>
-  <script src="./qibla.js?v=19"></script>
-  <script src="./luna.js?v=19"></script>
+  <script src="./timings.js?v=20"></script>
+  <script src="./app.js?v=20"></script>
+  <script src="./qibla.js?v=20"></script>
+  <script src="./luna.js?v=20"></script>
 </body>
 </html>

@@ -24,6 +24,7 @@ const luna = {
   moonSprite: null,
   moonSpritePhase: -1,
   lastHint: "",
+  showPaths: true,
 };
 
 function lunaShortest(from, to) {
@@ -64,6 +65,19 @@ function fmtSkyTime(date) {
   }).format(date);
 }
 
+function skyPath(kind, date, hours, stepMin) {
+  const pts = [];
+  const steps = Math.round((hours * 60) / stepMin);
+  for (let i = 0; i <= steps; i++) {
+    const t = new Date(date.getTime() + i * stepMin * 60000);
+    const pos = kind === "moon"
+      ? SunCalc.getMoonPosition(t, luna.lat, luna.lng)
+      : SunCalc.getPosition(t, luna.lat, luna.lng);
+    pts.push({ az: azFromNorth(pos.azimuth), alt: radToDeg(pos.altitude) });
+  }
+  return pts;
+}
+
 function skyNow() {
   const date = new Date();
   const moonP = SunCalc.getMoonPosition(date, luna.lat, luna.lng);
@@ -84,6 +98,8 @@ function skyNow() {
     set: times.set,
     alwaysUp: !!times.alwaysUp,
     alwaysDown: !!times.alwaysDown,
+    moonPath: skyPath("moon", date, 2, 5),
+    sunPath: skyPath("sun", date, 2, 5),
   };
 }
 
@@ -194,6 +210,11 @@ function drawSky(sky, viewAz, viewAlt) {
     ctx.stroke();
   }
 
+  if (luna.showPaths) {
+    drawPath(ctx, sky.moonPath, viewAz, viewAlt, w, h, fov, "rgba(244, 241, 234, 0.85)");
+    drawPath(ctx, sky.sunPath, viewAz, viewAlt, w, h, fov, "rgba(255, 210, 74, 0.85)");
+  }
+
   const sun = project(sky.sunAz, sky.sunAlt, viewAz, viewAlt, w, h, fov);
   drawSun(ctx, sun, w, h, sky.sunAlt < 0);
   const moon = project(sky.moonAz, sky.moonAlt, viewAz, viewAlt, w, h, fov);
@@ -238,6 +259,58 @@ function drawSky(sky, viewAz, viewAlt) {
 
   drawAimArrow(ctx, cx, cy, 44, moon.x, moon.y, "#f4f1ea", moonAlpha);
   drawAimArrow(ctx, cx, cy, 58, sun.x, sun.y, "#ffd24a", sunAlpha);
+}
+
+function drawPath(ctx, points, viewAz, viewAlt, w, h, fov, color) {
+  if (!points || points.length < 2) return;
+  ctx.save();
+  ctx.setLineDash([5, 7]);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 1.8;
+  ctx.strokeStyle = color;
+  let drawing = false;
+  ctx.beginPath();
+  for (let i = 0; i < points.length; i++) {
+    const p = project(points[i].az, points[i].alt, viewAz, viewAlt, w, h, fov);
+    const prev = i > 0
+      ? project(points[i - 1].az, points[i - 1].alt, viewAz, viewAlt, w, h, fov)
+      : null;
+    const off = p.x < -90 || p.x > w + 90 || p.y < -90 || p.y > h + 90;
+    const jump = prev && Math.hypot(p.x - prev.x, p.y - prev.y) > Math.min(w, h) * 0.65;
+    if (off || jump) {
+      if (drawing) {
+        ctx.stroke();
+        ctx.beginPath();
+        drawing = false;
+      }
+      continue;
+    }
+    if (!drawing) {
+      ctx.moveTo(p.x, p.y);
+      drawing = true;
+    } else {
+      ctx.lineTo(p.x, p.y);
+    }
+  }
+  if (drawing) ctx.stroke();
+
+  const end = project(points[points.length - 1].az, points[points.length - 1].alt, viewAz, viewAlt, w, h, fov);
+  const before = project(points[points.length - 2].az, points[points.length - 2].alt, viewAz, viewAlt, w, h, fov);
+  if (end.x > -20 && end.x < w + 20 && end.y > -20 && end.y < h + 20) {
+    ctx.setLineDash([]);
+    ctx.fillStyle = color;
+    const ang = Math.atan2(end.y - before.y, end.x - before.x);
+    ctx.translate(end.x, end.y);
+    ctx.rotate(ang);
+    ctx.beginPath();
+    ctx.moveTo(8, 0);
+    ctx.lineTo(-4, -5);
+    ctx.lineTo(-4, 5);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
 function clamp01(v) {
@@ -509,6 +582,12 @@ function bindLunaDrag() {
 }
 
 document.getElementById("luna-compass").addEventListener("click", startLunaCompass);
+document.getElementById("luna-paths").addEventListener("click", () => {
+  luna.showPaths = !luna.showPaths;
+  const btn = document.getElementById("luna-paths");
+  btn.setAttribute("aria-pressed", String(luna.showPaths));
+  btn.textContent = luna.showPaths ? "Hide paths" : "Show paths";
+});
 document.getElementById("luna-gps").addEventListener("click", () => {
   const btn = document.getElementById("luna-gps");
   if (btn.dataset.mode === "reset") {

@@ -631,6 +631,13 @@ details.year > summary::-webkit-details-marker { display: none; }
   cursor: pointer;
 }
 .qibla-cta:hover { border-color: var(--gold); color: var(--gold-2); }
+.luna-actions {
+  display: flex;
+  gap: 8px;
+  margin: 4px 4px 10px;
+}
+.luna-actions .qibla-cta { width: auto; flex: 1; margin: 0; }
+.luna-paths-btn[aria-pressed="false"] { opacity: 0.65; }
 
 .luna-stage {
   height: 320px;
