@@ -507,32 +507,45 @@ function updateLuna() {
   skyCached();
 }
 
+function screenAngle() {
+  const a = screen.orientation?.angle;
+  if (typeof a === "number" && !Number.isNaN(a)) return a;
+  if (typeof window.orientation === "number") return window.orientation;
+  return 0;
+}
+
 function lunaCompassHeading(event) {
+  let heading = null;
   if (typeof event.webkitCompassHeading === "number" && !Number.isNaN(event.webkitCompassHeading)) {
-    return (event.webkitCompassHeading + LUNA_MAPLE.declination + 360) % 360;
+    heading = event.webkitCompassHeading + LUNA_MAPLE.declination;
+  } else if (event.absolute === true && typeof event.alpha === "number") {
+    heading = 360 - event.alpha;
+  } else if (typeof event.alpha === "number") {
+    heading = 360 - event.alpha;
   }
-  if (event.absolute === true && typeof event.alpha === "number") {
-    return (360 - event.alpha) % 360;
-  }
-  if (typeof event.alpha === "number") return (360 - event.alpha) % 360;
-  return null;
+  if (heading == null) return null;
+  return (heading - screenAngle() + 360) % 360;
+}
+
+function viewAltitude(event) {
+  if (typeof event.beta !== "number") return null;
+  const beta = event.beta * Math.PI / 180;
+  const gamma = (event.gamma || 0) * Math.PI / 180;
+  const up = -Math.cos(beta) * Math.cos(gamma);
+  return Math.asin(Math.max(-1, Math.min(1, up))) * 180 / Math.PI;
 }
 
 function onLunaOrient(event) {
   const heading = lunaCompassHeading(event);
   if (heading == null) return;
+  const alt = viewAltitude(event);
   if (!luna.hasCompass) {
     luna.headingSmooth = heading;
-    if (typeof event.beta === "number") luna.altSmooth = event.beta - 90;
+    if (alt != null) luna.altSmooth = alt;
   }
   luna.hasCompass = true;
   luna.heading = heading;
-  if (typeof event.beta === "number") {
-    let alt = event.beta - 90;
-    if (alt > 90) alt = 180 - alt;
-    if (alt < -90) alt = -180 - alt;
-    luna.altView = Math.max(-90, Math.min(90, alt));
-  }
+  if (alt != null) luna.altView = Math.max(-90, Math.min(90, alt));
   luna.followPhone = true;
   document.getElementById("luna-compass").hidden = true;
 }
@@ -620,7 +633,15 @@ document.getElementById("luna-gps").addEventListener("click", () => {
   );
 });
 
+function bumpLunaSize() {
+  luna.skyAt = 0;
+}
+
 bindLunaDrag();
 updateLuna();
 requestAnimationFrame(lunaFrame);
-window.addEventListener("resize", () => { luna.skyAt = 0; });
+window.addEventListener("resize", bumpLunaSize);
+window.addEventListener("orientationchange", () => {
+  setTimeout(bumpLunaSize, 200);
+});
+screen.orientation?.addEventListener("change", bumpLunaSize);

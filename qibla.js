@@ -107,17 +107,24 @@ function setLocation(lat, lng, place) {
   applyQiblaView();
 }
 
+function screenAngle() {
+  const a = screen.orientation?.angle;
+  if (typeof a === "number" && !Number.isNaN(a)) return a;
+  if (typeof window.orientation === "number") return window.orientation;
+  return 0;
+}
+
 function compassHeading(event) {
+  let heading = null;
   if (typeof event.webkitCompassHeading === "number" && !Number.isNaN(event.webkitCompassHeading)) {
-    return (event.webkitCompassHeading + declinationFor(qiblaState.lat, qiblaState.lng) + 360) % 360;
+    heading = event.webkitCompassHeading + declinationFor(qiblaState.lat, qiblaState.lng);
+  } else if (event.absolute === true && typeof event.alpha === "number") {
+    heading = 360 - event.alpha;
+  } else if (typeof event.alpha === "number") {
+    heading = 360 - event.alpha;
   }
-  if (event.absolute === true && typeof event.alpha === "number") {
-    return (360 - event.alpha) % 360;
-  }
-  if (typeof event.alpha === "number") {
-    return (360 - event.alpha) % 360;
-  }
-  return null;
+  if (heading == null) return null;
+  return (heading - screenAngle() + 360) % 360;
 }
 
 function onOrientation(event) {

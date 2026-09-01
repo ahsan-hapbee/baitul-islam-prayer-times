@@ -45,7 +45,10 @@ body::before {
 .wrap {
   width: min(440px, 100%);
   margin: 0 auto;
-  padding: calc(14px + env(safe-area-inset-top)) 14px calc(28px + env(safe-area-inset-bottom));
+  padding: calc(14px + env(safe-area-inset-top))
+           calc(14px + env(safe-area-inset-right))
+           calc(28px + env(safe-area-inset-bottom))
+           calc(14px + env(safe-area-inset-left));
   position: relative;
   min-width: 0;
   overflow-x: clip;
@@ -693,11 +696,103 @@ details.year > summary::-webkit-details-marker { display: none; }
 @media (max-width: 400px) {
   .top { flex-wrap: wrap; }
   .clock { max-width: 100%; text-align: left; }
+  .where { white-space: normal; }
 }
 
-@media (min-width: 760px) {
-  .wrap { width: min(480px, 100%); padding-top: 28px; }
+@media (orientation: landscape) {
+  .wrap { width: min(980px, 100%); }
+}
+
+@media (min-width: 720px), (orientation: landscape) and (min-width: 600px) {
+  .wrap {
+    width: min(980px, 100%);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 14px;
+    align-items: start;
+  }
+  .top, .arabic, .pills, .banner, .week-card, .year, .notes, .footer {
+    grid-column: 1 / -1;
+  }
+  .clock { max-width: none; flex: 0 0 auto; }
+  .slot .t { font-size: 14px; }
   body { background-color: #050c09; }
+}
+
+@media (min-width: 720px) and (min-height: 541px) {
+  .wrap { padding-top: 28px; align-items: stretch; }
+}
+
+@media (orientation: landscape) and (max-height: 540px) {
+  .wrap {
+    padding-top: calc(8px + env(safe-area-inset-top));
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+  .arabic { margin: 0 0 8px; font-size: 13px; }
+  .pills { margin-bottom: 10px; }
+  .hero { padding: 14px 16px 12px; }
+  .hero .prayer-name { font-size: clamp(36px, 8vw, 56px); }
+  h1 { font-size: 24px; }
+
+  .qibla-card, .luna-card { grid-column: 1 / -1; }
+
+  .qibla-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(200px, 0.85fr);
+    column-gap: 12px;
+    align-items: stretch;
+  }
+  .qibla-card .week-head { grid-column: 1 / -1; }
+  .qibla-stage {
+    grid-column: 1;
+    grid-row: 2 / 4;
+    height: min(68dvh, 380px);
+    margin: 0 2px 10px;
+  }
+  .qibla-readout {
+    grid-column: 2;
+    grid-row: 2;
+    text-align: left;
+    padding: 0 8px 8px;
+  }
+  .qibla-card > .qibla-cta {
+    grid-column: 2;
+    grid-row: 3;
+    width: auto;
+    margin: 0 4px 10px;
+  }
+
+  .luna-card {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(200px, 0.85fr);
+    column-gap: 12px;
+    align-items: stretch;
+  }
+  .luna-card .week-head { grid-column: 1 / -1; }
+  .luna-stage {
+    grid-column: 1;
+    grid-row: 2 / 5;
+    height: min(68dvh, 380px);
+    margin: 0 2px 10px;
+  }
+  .luna-hint {
+    grid-column: 2;
+    grid-row: 2;
+    min-height: 0;
+    margin: 0 8px 8px;
+  }
+  .luna-actions {
+    grid-column: 2;
+    grid-row: 3;
+  }
+  .luna-phase-row {
+    grid-column: 2;
+    grid-row: 4;
+    grid-template-columns: 72px 1fr;
+    gap: 10px;
+    padding: 4px 8px 10px;
+  }
+  #luna-phase { width: 72px; height: 72px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
